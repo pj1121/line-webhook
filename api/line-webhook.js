@@ -1,33 +1,36 @@
-export const config = { runtime: 'edge' };
-
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyN1MUcmeYMEhCC1RFmDWfzzxF02ccUhYG-Py0vG2LbtbI3F6DTiKGUMJikSqtWSXQ5/exec';
-
-export default async function handler(req) {
+// api/line-webhook.js  Node 版
+export default async function handler(req, res) {
   try {
     if (req.method !== 'POST') {
-      return new Response('ok', { status: 200 });
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'text/plain');
+      return res.end('ok');
     }
 
-    const raw = await req.text();
-    const signature = req.headers.get('x-line-signature') || req.headers.get('X-Line-Signature') || '';
+    const raw = await new Promise((resolve, reject) => {
+      let data = '';
+      req.on('data', (c) => (data += c));
+      req.on('end', () => resolve(data));
+      req.on('error', reject);
+    });
 
-    console.log('line-webhook: received', { length: raw.length, signature: !!signature });
+    const signature = req.headers['x-line-signature'] || '';
 
-    const forwardRes = await fetch(GAS_URL, {
+    await fetch('https://script.google.com/macros/s/AKfycbyN1MUcmeYMEhCC1RFmDWfzzxF02ccUhYG-Py0vG2LbtbI3F6DTiKGUMJikSqtWSXQ5/exec', {
       method: 'POST',
       body: raw,
-      redirect: 'follow',
       headers: {
         'content-type': 'application/json',
         'x-line-signature': signature
       }
     });
 
-    console.log('line-webhook: forwarded to GAS, status=', forwardRes.status);
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'text/plain');
+    return res.end('ok');
   } catch (err) {
-    console.error('line-webhook error:', err);
-    // still return 200 so LINE verify passes
+    // 兜底 200，避免 LINE 重試
+    res.statusCode = 200;
+    return res.end('ok');
   }
-
-  return new Response('ok', { status: 200 });
 }
