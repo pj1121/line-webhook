@@ -1,5 +1,0 @@
-{
-  "routes": [
-    { "src": "/api/line-webhook", "dest": "/api/line-webhook.js" }
-  ]
-}
